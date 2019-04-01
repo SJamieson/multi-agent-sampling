@@ -7,21 +7,24 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-video_length = 12
+def get_param(num, default):
+    return sys.argv[num] if len(sys.argv) > num else default
+
+video_length = 12  # in seconds
 
 ## Sim parameters
 pbounds = {'x': (0, 100), 'y': (0, 100)}
-start = [80, 50]
-kappa = 2.576
+start = [80, 20]
+kappa = float(get_param(1, 2.576))
 xi = 0
-max_depth = 7
+max_depth = int(get_param(2, 5))
 num_actions = 180
 fps = num_actions // video_length
-step_size = 4
+step_size = int(get_param(3, 4))
 can_backtrack = False
 acq = 'ucb'
 filename = 'single-acq={}.{}-{}x{}y-d{}-na{}-ss{}.mp4'.format(acq, kappa if acq == 'ucb' else xi, start[0],
-                                                                   start[1], max_depth, num_actions, step_size)
+                                                              start[1], max_depth, num_actions, step_size)
 
 ## MCTS setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
@@ -37,10 +40,14 @@ X, Y = np.meshgrid(x, y)
 fig = plt.figure()
 ax1 = fig.add_subplot(2, 1, 1, adjustable='box', aspect=1.0)
 ax1.title.set_text('Depth Map')
-CS = plt.contour(X, Y, caldera_sim_function(X, Y), levels=12)
+CS = plt.contour(X, Y, caldera_sim_function(X, Y), levels=12, cmap='Blues')
 plt.clabel(CS, inline=1, fontsize=8, fmt='%.3g')
 plt.colorbar(CS, ax=ax1)
+ax1.plot(20, 46, 'bx')
+ax1.plot(79, 79, 'bx')
 ax2 = fig.add_subplot(2, 1, 2, adjustable='box', aspect=1.0)
+ax2.plot(20, 46, 'bx')
+ax2.plot(79, 79, 'bx')
 ax2.title.set_text('Acquisition Function')
 xs = np.array([])
 ys = np.array([])
@@ -59,7 +66,7 @@ def update(_):
     if marker1 is not None:
         ax1.lines.pop()
     pos1, = ax1.plot(xs[-2:], ys[-2:], color='k')
-    marker1, = ax1.plot(robot_state.x, robot_state.y, '*b')
+    marker1, = ax1.plot(robot_state.x, robot_state.y, '*m')
     # plt.pause(0.1)
 
     # plt.subplot(212)
@@ -73,7 +80,7 @@ def update(_):
         cbar.remove()
     cbar = plt.colorbar(im, ax=ax2)
     pos2, = ax2.plot(xs[-2:], ys[-2:], color='k')
-    marker2, = ax2.plot(robot_state.x, robot_state.y, '*b')
+    marker2, = ax2.plot(robot_state.x, robot_state.y, '*m')
     ax2.invert_yaxis()
     # plt.pause(0.1)
     t.update(n=1)
