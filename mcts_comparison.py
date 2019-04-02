@@ -23,14 +23,13 @@ fps = num_actions // video_length
 step_size = int(get_param(3, 4))
 can_backtrack = False
 acq = 'ucb'
-filename = 'single-acq={}.{}-{}x{}y-d{}-na{}-ss{}.mp4'.format(acq, kappa if acq == 'ucb' else xi, start[0],
+filename = 'single-acq={}.{}-{}x{}y-d{}-na{}-ss{}'.format(acq, kappa if acq == 'ucb' else xi, start[0],
                                                               start[1], max_depth, num_actions, step_size)
 
 ## MCTS setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
 mcts = mcts(timeLimit=max_depth * 300)
-samples = dict()
-robot_state = RobotState(*start, pbounds, samples, acq_func, max_depth, step_size)
+samples, robot_state = None, None
 
 ## Plotting setup
 delta = 1
@@ -56,9 +55,13 @@ cbar, marker1, marker2 = None, None, None
 t = tqdm(total=num_actions + 1, file=sys.stdout)
 
 
-def update(_):
+def update(frame):
     global samples, cbar, marker1, marker2, xs, ys, robot_state, t
-    robot_state = mcts_state_update(mcts, robot_state, samples, sample_func=caldera_sim_function)
+    if frame == 0:
+        samples = dict()
+        robot_state = RobotState(*start, pbounds, samples, acq_func, max_depth, step_size)
+    else:
+        robot_state = mcts_state_update(mcts, robot_state, samples, sample_func=caldera_sim_function)
 
     # plt.subplot(211)
     xs = np.concatenate((xs, [robot_state.x]))
@@ -88,5 +91,6 @@ def update(_):
     return marker1, marker2, pos1, pos2, im
 
 
-anim = animation.FuncAnimation(fig, update, frames=num_actions, blit=True)
-anim.save(filename, fps=fps)
+anim = animation.FuncAnimation(fig, update, save_count=num_actions, frames=num_actions, blit=True)
+# anim.save(filename + '.mp4', fps=fps)
+anim.save(filename + '.gif', writer='imagemagick', fps=fps)

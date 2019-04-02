@@ -19,7 +19,7 @@ def caldera_sim_function(x, y):
 
 class RobotState:
     def __init__(self, x, y, bounds, samples, acq_func, max_depth, step_size, depth=0, base_reward=0, dir='north',
-                 kernel=RBF(length_scale=5)):
+                 kernel=RBF(length_scale=1)):
         self.x = x
         self.y = y
         self.bounds = bounds
@@ -30,8 +30,9 @@ class RobotState:
         self.max_depth = max_depth
         self.step_size = step_size
         self.dir = dir
+        self.history = set()
+        self.actions = self._generate_actions()
 
-        self.can_backtrack = False
         self.y_max = 1
         self.gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-3, normalize_y=False, n_restarts_optimizer=25,
                                            random_state=1)
@@ -55,19 +56,25 @@ class RobotState:
         return RobotState(self.x, self.y, self.bounds, new_samples, self.acq_func, depth=0, base_reward=0,
                           max_depth=self.max_depth, step_size=self.step_size, dir=self.dir, kernel=self.gp.kernel)
 
-    def getPossibleActions(self):
+    def _generate_actions(self):
         actions = []
-        if self.x >= self.bounds['x'][0] + self.step_size:
+        if self.x >= (self.bounds['x'][0] + self.step_size):
             actions.append('west')
-        if self.x <= self.bounds['x'][1] - self.step_size:
+        if self.x <= (self.bounds['x'][1] - self.step_size):
             actions.append('east')
-        if self.y >= self.bounds['y'][0] + self.step_size:
+        if self.y >= (self.bounds['y'][0] + self.step_size):
             actions.append('south')
-        if self.y <= self.bounds['y'][1] - self.step_size:
+        if self.y <= (self.bounds['y'][1] - self.step_size):
             actions.append('north')
-        if not self.can_backtrack and len(actions) > 1 and self._invert_dir(self.dir) in actions:
+        if self._invert_dir(self.dir) in actions:
             actions.remove(self._invert_dir(self.dir))
+        for action in self.history:
+            if len(actions) > 1 and action in actions:
+                actions.remove(action)
         return actions
+
+    def getPossibleActions(self):
+        return self.actions
 
     def takeAction(self, action):
         new_samples = deepcopy(self.samples)
@@ -75,6 +82,8 @@ class RobotState:
         new_state = self.renew(new_samples)
         new_state.depth = self.depth + 1
         new_state.base_reward = self.base_reward + self.getReward()
+        new_state.history = self.history.copy()
+        new_state.history.add(action)
 
         if action == 'west':
             new_state.x -= self.step_size
@@ -98,7 +107,7 @@ class RobotState:
 
 def mcts_state_update(mcts, state, samples, sample_func):
     mcts.search(initialState=state)
-    state = mcts.getBestChild(mcts.root, 0).state
+    state = mcts.getBestChild(mcts.root, 0, bestOnly=True).state
     if (state.x, state.y) not in samples:
         samples[(state.x, state.y)] = sample_func(state.x, state.y)
     new_robot_state = state.renew(samples)

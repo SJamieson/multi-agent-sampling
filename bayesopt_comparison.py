@@ -22,16 +22,10 @@ num_samples = int(get_param(2, 40))
 num_steps = int(get_param(3, 1))
 fps = num_samples // video_length
 acq = 'ucb'
-filename = 'bayesopt-acq={}.{}-ns{}-st{}.mp4'.format(acq, kappa if acq == 'ucb' else xi, num_samples, num_steps)
+filename = 'bayesopt-acq={}.{}-ns{}-st{}'.format(acq, kappa if acq == 'ucb' else xi, num_samples, num_steps)
 
 ## bayesopt setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
-optimizer = BayesianOptimization(
-    f=caldera_sim_function,
-    pbounds=pbounds,
-    verbose=2,  # verbose = 1 prints only when a maximum is observed, verbose = 0 is silent
-    random_state=1,
-)
 
 ## Plotting setup
 delta = 1
@@ -56,12 +50,19 @@ cbar, pos1, marker1, pos2, marker2 = None, None, None, None, None
 
 t = tqdm(total=num_samples + 1, file=sys.stdout)
 
-counter = 0
-def update(_):
-    global cbar, pos1, marker1, pos2, marker2, xs, ys, t, counter
+optimizer = None
+def update(frame):
+    global cbar, pos1, marker1, pos2, marker2, xs, ys, t, optimizer
+    if frame == 0:
+        optimizer = BayesianOptimization(
+            f=caldera_sim_function,
+            pbounds=pbounds,
+            verbose=2,  # verbose = 1 prints only when a maximum is observed, verbose = 0 is silent
+            random_state=1,
+        )
     reset_loc = False
     next_point = optimizer.suggest(acq_func)
-    if counter % (num_steps) == 0:
+    if frame % (num_steps) == 0:
         next_point = optimizer._space.array_to_params(optimizer._space.random_sample())
         reset_loc = True
     target = caldera_sim_function(**next_point)
@@ -74,7 +75,7 @@ def update(_):
     ys = np.concatenate((ys, [y]))
     if marker1 is not None:
         ax1.lines.pop()
-    if counter == 0 or not reset_loc:
+    if frame == 0 or not reset_loc:
         pos1, = ax1.plot(xs[-2:], ys[-2:], color='k')
     marker1, = ax1.plot(x, y, '*m')
     # plt.pause(0.1)
@@ -89,17 +90,17 @@ def update(_):
     if cbar is not None:
         cbar.remove()
     cbar = plt.colorbar(im, ax=ax2)
-    if counter == 0 or not reset_loc:
+    if frame == 0 or not reset_loc:
         pos2, = ax2.plot(xs[-2:], ys[-2:], color='k')
     marker2, = ax2.plot(x, y, '*m')
     ax2.invert_yaxis()
     # plt.pause(0.1)
     t.update(n=1)
     plt.tight_layout()
-    counter += 1
     return marker1, marker2, pos1, pos2, im
 
 
-anim = animation.FuncAnimation(fig, update, frames=num_samples, blit=True)
-anim.save(filename, fps=fps)
+anim = animation.FuncAnimation(fig, update, save_count=num_samples, frames=num_samples, blit=True)
+# anim.save(filename + '.mp4', fps=fps)
+anim.save(filename + '.gif', writer='imagemagick', fps=fps)
 # plt.show()
