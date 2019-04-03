@@ -18,20 +18,20 @@ def caldera_sim_function(x, y):
 
 
 class RobotState:
-    def __init__(self, x, y, bounds, samples, acq_func, max_depth, step_size, depth=0, base_reward=0, dir='north',
-                 kernel=RBF(length_scale=1)):
+    def __init__(self, x, y, bounds, samples, acq_func, max_depth, step_size, dir=None, kernel=RBF(length_scale=1)):
         self.x = x
         self.y = y
         self.bounds = bounds
         self.samples = deepcopy(samples)
         self.acq_func = acq_func
-        self.depth = depth
-        self.base_reward = base_reward
         self.max_depth = max_depth
         self.step_size = step_size
+
+        self.depth = 0
+        self.base_reward = 0
         self.dir = dir
-        self.history = set()
-        self.actions = self._generate_actions()
+        self.history = list()
+        self.actions = None
 
         self.y_max = 1
         self.gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-3, normalize_y=False, n_restarts_optimizer=25,
@@ -41,7 +41,7 @@ class RobotState:
             xdata = np.vstack(list(self.samples.keys()))
             ydata = np.vstack(list(self.samples.values()))
             self.y_max = np.max(ydata)
-            self.gp.fit(xdata, ydata.reshape(-1) / self.y_max)
+            self.gp.fit(xdata, ydata.reshape(-1) / (self.y_max if self.y_max > 0 else 1))
 
 
     def set_backtracking(self, val):
@@ -49,12 +49,12 @@ class RobotState:
 
     @staticmethod
     def _invert_dir(dir):
-        return {'north': 'south', 'south': 'north',
+        return {None: None, 'north': 'south', 'south': 'north',
                 'west': 'east', 'east': 'west'}[dir]
 
     def renew(self, new_samples):
-        return RobotState(self.x, self.y, self.bounds, new_samples, self.acq_func, depth=0, base_reward=0,
-                          max_depth=self.max_depth, step_size=self.step_size, dir=self.dir, kernel=self.gp.kernel)
+        return RobotState(self.x, self.y, self.bounds, new_samples, self.acq_func, max_depth=self.max_depth,
+                          step_size=self.step_size, dir=self.dir, kernel=self.gp.kernel)
 
     def _generate_actions(self):
         actions = []
@@ -69,21 +69,24 @@ class RobotState:
         if self._invert_dir(self.dir) in actions:
             actions.remove(self._invert_dir(self.dir))
         for action in self.history:
-            if len(actions) > 1 and action in actions:
-                actions.remove(action)
-        return actions
+            if len(actions) > 1 and self._invert_dir(action) in actions:
+                actions.remove(self._invert_dir(action))
+        self.actions = actions
 
     def getPossibleActions(self):
+        if self.actions is None:
+            self._generate_actions()
         return self.actions
 
     def takeAction(self, action):
         new_samples = deepcopy(self.samples)
-        new_samples[(self.x, self.y)] = self.getReward()
+        new_samples[(self.x, self.y)] = self.gp.predict(np.array([self.x, self.y]).reshape(1,-1))
         new_state = self.renew(new_samples)
+        new_state.dir = action
         new_state.depth = self.depth + 1
-        new_state.base_reward = self.base_reward + self.getReward()
+        new_state.base_reward = self.getReward()
         new_state.history = self.history.copy()
-        new_state.history.add(action)
+        new_state.history.append(action)
 
         if action == 'west':
             new_state.x -= self.step_size
@@ -97,17 +100,23 @@ class RobotState:
 
     def isTerminal(self):
         global max_depth
+        assert(self.depth == len(self.history))
         return self.depth >= self.max_depth
 
     def getReward(self):
         reward, = self.acq_func.utility(np.array([self.x, self.y]).reshape(1, -1),
                                         self.gp, y_max=1)
-        return reward * self.y_max
+        return self.base_reward + reward * self.y_max
 
 
-def mcts_state_update(mcts, state, samples, sample_func):
+def mcts_state_update(mcts, state, samples, sample_func, debug=False):
     mcts.search(initialState=state)
     state = mcts.getBestChild(mcts.root, 0, bestOnly=True).state
+    if debug:
+        target = mcts.getBestChild(mcts.root, 0, bestOnly=True)
+        for i in range(5 - 1):
+            target = mcts.getBestChild(target, 0, bestOnly=True)
+        print(target)
     if (state.x, state.y) not in samples:
         samples[(state.x, state.y)] = sample_func(state.x, state.y)
     new_robot_state = state.renew(samples)
