@@ -18,7 +18,7 @@ start = [80, 20]
 kappa = float(get_param(1, 2.576))
 xi = 0
 max_depth = int(get_param(2, 5))
-num_actions = 60
+num_actions = int(get_param(4, 60))
 fps = num_actions // video_length
 step_size = int(get_param(3, 4))
 can_backtrack = False
@@ -29,7 +29,7 @@ filename = 'single-acq={}.{}-{}x{}y-d{}-na{}-ss{}'.format(acq, kappa if acq == '
 ## MCTS setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
 # mcts = mcts(timeLimit=max_depth * 600)
-mcts = mcts(iterationLimit=50*max_depth)
+mcts = mcts(iterationLimit=16*(max_depth**2))
 samples, robot_state = None, None
 
 ## Plotting setup

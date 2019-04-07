@@ -111,11 +111,11 @@ class RobotState:
 
 def mcts_state_update(mcts, state, samples, sample_func, debug=False):
     mcts.search(initialState=state)
-    state = mcts.getBestChild(mcts.root, 0, bestOnly=True).state
+    state = mcts.getBestChild(mcts.root, 0).state  # bestOnly = True
     if debug:
-        target = mcts.getBestChild(mcts.root, 0, bestOnly=True)
+        target = mcts.getBestChild(mcts.root, 0)  # bestOnly = True
         for i in range(5 - 1):
-            target = mcts.getBestChild(target, 0, bestOnly=True)
+            target = mcts.getBestChild(target, 0)  # bestOnly = True
         print(target)
     if (state.x, state.y) not in samples:
         samples[(state.x, state.y)] = sample_func(state.x, state.y)
