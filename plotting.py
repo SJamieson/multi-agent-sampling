@@ -51,12 +51,13 @@ class ContourPlot(RobotPlot):
                 label.remove()
             if self.cbar is not None:
                 self.cbar.remove()
+                self.cbar = None
         self.contours = self.ax.contour(X, Y, Z, **contour_kw)
         changed = [self.contours]
         if label:
             self.contour_labels = self.ax.clabel(self.contours, inline=1, fontsize=8, fmt='%.3g')
             changed.append(self.contour_labels)
-        if colorbar:
+        if colorbar and len(self.contour_labels) > 0:
             self.cbar = plt.gcf().colorbar(self.contours, ax=self.ax, fraction=0.046, pad=0.04)
             changed.append(self.cbar)
         return changed

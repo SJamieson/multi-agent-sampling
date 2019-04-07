@@ -1,6 +1,6 @@
 from bayes_opt import UtilityFunction, BayesianOptimization
 from caldera_mcts import caldera_sim_function
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from plotting import HeatmapPlot, ContourPlot, draw_caldera_maxima
 import numpy as np
 from tqdm import tqdm
 import sys
@@ -14,6 +14,7 @@ def get_param(num, default):
     return sys.argv[num] if len(sys.argv) > num else default
 
 video_length = 8  # in seconds
+debug = True
 
 ## Sim parameters
 pbounds = {'x': (0, 100), 'y': (0, 100)}
@@ -33,27 +34,25 @@ delta = 1
 x = np.arange(0, 101.0, delta)
 y = np.arange(0, 101.0, delta)
 X, Y = np.meshgrid(x, y)
+
 fig = plt.figure()
+
 ax1 = fig.add_subplot(1, 2, 1, adjustable='box', aspect=1.0)
-ax1.title.set_text('Depth Map')
-CS = plt.contour(X, Y, caldera_sim_function(X, Y), levels=12, cmap='Blues')
-plt.clabel(CS, inline=1, fontsize=8, fmt='%.3g')
-plt.colorbar(CS, ax=ax1, fraction=0.046, pad=0.04)
-ax1.plot(20, 46, 'bx')
-ax1.plot(79, 79, 'bx')
+contour_plot = ContourPlot(ax1, 'Depth Map')
+contour_plot.draw_contours(X, Y, caldera_sim_function(X, Y), label=True, colorbar=True, levels=12, cmap='Blues')
+draw_caldera_maxima(ax1)
+
 ax2 = fig.add_subplot(1, 2, 2, adjustable='box', aspect=1.0)
-ax2.plot(20, 46, 'bx')
-ax2.plot(79, 79, 'bx')
-ax2.title.set_text('Acquisition Function')
+acq_plot = HeatmapPlot(ax2, 'Acquisition Function')
+draw_caldera_maxima(ax2)
 xs = np.array([])
 ys = np.array([])
-cbar, pos1, marker1, pos2, marker2 = None, None, None, None, None
 
 t = tqdm(total=num_samples + 1, file=sys.stdout)
 
 optimizer = None
 def update(frame):
-    global cbar, pos1, marker1, pos2, marker2, xs, ys, t, optimizer
+    global xs, ys, optimizer
     if frame == 0:
         optimizer = BayesianOptimization(
             f=caldera_sim_function,
@@ -72,36 +71,29 @@ def update(frame):
     x, y = next_point['x'], next_point['y']
 
     # plt.subplot(211)
+    fig_changes = list()
+
     xs = np.concatenate((xs, [x]))
     ys = np.concatenate((ys, [y]))
-    if marker1 is not None:
-        ax1.lines.pop()
-    if frame == 0 or not reset_loc:
-        pos1, = ax1.plot(xs[-2:], ys[-2:], color='k')
-    marker1, = ax1.plot(x, y, '*m')
+    fig_changes.extend(contour_plot.draw_robot((x, y), connect=(not reset_loc)))
+    fig_changes.extend(acq_plot.draw_robot((x, y), connect=(not reset_loc)))
     # plt.pause(0.1)
 
     # plt.subplot(212)
     scores = acq_func.utility(np.vstack([X.ravel(), Y.ravel()]).transpose(), optimizer._gp, 0)
     scores = scores.reshape(X.shape)
-    if marker2 is not None:
-        ax2.lines.pop()
-    im = ax2.imshow(scores, cmap='hot', interpolation='nearest')
-    im.set_clim(vmin=0)
-    if cbar is not None:
-        cbar.remove()
-    cbar = plt.colorbar(im, ax=ax2, fraction=0.046, pad=0.04)
-    if frame == 0 or not reset_loc:
-        pos2, = ax2.plot(xs[-2:], ys[-2:], color='k')
-    marker2, = ax2.plot(x, y, '*m')
-    ax2.invert_yaxis()
-    # plt.pause(0.1)
+    fig_changes.extend(acq_plot.draw_heatmap(scores, colorbar=True, cmap='hot', vmin=0))
+
     t.update(n=1)
     plt.tight_layout()
-    return marker1, marker2, pos1, pos2, im
+    return fig_changes
 
 
-anim = animation.FuncAnimation(fig, update, save_count=num_samples, frames=num_samples, blit=True)
-# anim.save(filename + '.mp4', fps=fps)
-anim.save(filename + '.gif', writer='imagemagick', fps=fps, savefig_kwargs={'bbox_inches': 'tight'})
-# plt.show()
+if debug:
+    for i in range(num_samples):
+        update(i)
+        plt.pause(0.1)
+    plt.show()
+else:
+    anim = animation.FuncAnimation(fig, update, save_count=num_samples, frames=num_samples, blit=True)
+    anim.save(filename + '.gif', writer='imagemagick', fps=fps, savefig_kwargs={'bbox_inches': 'tight'})
