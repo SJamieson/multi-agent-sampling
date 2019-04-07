@@ -10,8 +10,10 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
+
 def get_param(num, default):
     return sys.argv[num] if len(sys.argv) > num else default
+
 
 video_length = 8  # in seconds
 debug = False
@@ -51,6 +53,8 @@ ys = np.array([])
 t = tqdm(total=num_samples + 1, file=sys.stdout)
 
 optimizer = None
+
+
 def update(frame):
     global xs, ys, optimizer
     if frame == 0:

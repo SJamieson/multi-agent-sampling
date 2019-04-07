@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from plotting import ContourPlot, HeatmapPlot, draw_caldera_maxima
 
+
 def get_param(num, default):
     return sys.argv[num] if len(sys.argv) > num else default
+
 
 video_length = 12  # in seconds
 debug = False
@@ -26,12 +28,12 @@ step_size = int(get_param(3, 4))
 can_backtrack = False
 acq = 'ucb'
 filename = 'single-acq={}.{}-{}x{}y-d{}-na{}-ss{}'.format(acq, kappa if acq == 'ucb' else xi, start[0],
-                                                              start[1], max_depth, num_actions, step_size)
+                                                          start[1], max_depth, num_actions, step_size)
 
 ## MCTS setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
 # mcts = mcts(timeLimit=max_depth * 600)
-mcts = mcts(iterationLimit=16*(max_depth**2))
+mcts = mcts(iterationLimit=16 * (max_depth ** 2))
 samples, robot_state = None, None
 
 ## Plotting setup
@@ -54,6 +56,7 @@ xs = np.array([])
 ys = np.array([])
 
 t = tqdm(total=num_actions + 1, file=sys.stdout)
+
 
 def update(frame):
     global samples, xs, ys, robot_state

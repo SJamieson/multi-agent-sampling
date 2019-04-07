@@ -43,7 +43,6 @@ class RobotState:
             self.y_max = np.max(ydata)
             self.gp.fit(xdata, ydata.reshape(-1) / (self.y_max if self.y_max > 0 else 1))
 
-
     def set_backtracking(self, val):
         self.can_backtrack = val
 
@@ -80,7 +79,7 @@ class RobotState:
 
     def takeAction(self, action):
         new_samples = deepcopy(self.samples)
-        new_samples[(self.x, self.y)] = self.gp.predict(np.array([self.x, self.y]).reshape(1,-1))
+        new_samples[(self.x, self.y)] = self.gp.predict(np.array([self.x, self.y]).reshape(1, -1))
         new_state = self.renew(new_samples)
         new_state.dir = action
         new_state.depth = self.depth + 1
@@ -100,7 +99,7 @@ class RobotState:
 
     def isTerminal(self):
         global max_depth
-        assert(self.depth == len(self.history))
+        assert (self.depth == len(self.history))
         return self.depth >= self.max_depth
 
     def getReward(self):
