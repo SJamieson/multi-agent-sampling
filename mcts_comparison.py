@@ -12,7 +12,7 @@ def get_param(num, default):
     return sys.argv[num] if len(sys.argv) > num else default
 
 video_length = 12  # in seconds
-debug = True
+debug = False
 
 ## Sim parameters
 pbounds = {'x': (0, 100), 'y': (0, 100)}

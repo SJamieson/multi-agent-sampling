@@ -16,7 +16,7 @@ def get_param(num, default):
 
 
 video_length = 20  # in seconds
-debug = True
+debug = False
 
 ## Sim parameters
 pbounds = {'x': (0, 100), 'y': (0, 100)}
@@ -39,7 +39,8 @@ fig = plt.figure()
 
 ax1 = fig.add_subplot(1, 2, 1, adjustable='box', aspect=1.0)
 contour_plot = ContourPlot(ax1, 'Depth Map')
-contour_plot.draw_contours(X, Y, caldera_sim_function(X, Y), label=True, colorbar=(type == 'acq-func'), levels=12, cmap='Blues')
+contour_plot.draw_contours(X, Y, caldera_sim_function(X, Y), label=True, colorbar=(type == 'acq-func'), levels=12,
+                           cmap='Blues')
 draw_caldera_maxima(ax1)
 
 ax2 = fig.add_subplot(1, 2, 2, adjustable='box', aspect=1.0)
