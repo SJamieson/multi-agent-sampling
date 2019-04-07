@@ -6,11 +6,13 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib import animation
+from plotting import ContourPlot, HeatmapPlot, draw_caldera_maxima
 
 def get_param(num, default):
     return sys.argv[num] if len(sys.argv) > num else default
 
 video_length = 12  # in seconds
+debug = True
 
 ## Sim parameters
 pbounds = {'x': (0, 100), 'y': (0, 100)}
@@ -37,62 +39,52 @@ delta = 1
 x = np.arange(0, 101.0, delta)
 y = np.arange(0, 101.0, delta)
 X, Y = np.meshgrid(x, y)
+
 fig = plt.figure()
+
 ax1 = fig.add_subplot(1, 2, 1, adjustable='box', aspect=1.0)
-ax1.title.set_text('Depth Map')
-CS = plt.contour(X, Y, caldera_sim_function(X, Y), levels=12, cmap='Blues')
-plt.clabel(CS, inline=1, fontsize=8, fmt='%.3g')
-plt.colorbar(CS, ax=ax1, fraction=0.046, pad=0.04)
-ax1.plot(20, 46, 'bx')
-ax1.plot(79, 79, 'bx')
+contour_plot = ContourPlot(ax1, 'Depth Map')
+contour_plot.draw_contours(X, Y, caldera_sim_function(X, Y), label=True, colorbar=True, levels=12, cmap='Blues')
+draw_caldera_maxima(ax1)
+
 ax2 = fig.add_subplot(1, 2, 2, adjustable='box', aspect=1.0)
-ax2.plot(20, 46, 'bx')
-ax2.plot(79, 79, 'bx')
-ax2.title.set_text('Acquisition Function')
+acq_plot = HeatmapPlot(ax2, 'Acquisition Function')
+draw_caldera_maxima(ax2)
 xs = np.array([])
 ys = np.array([])
-cbar, marker1, marker2 = None, None, None
 
 t = tqdm(total=num_actions + 1, file=sys.stdout)
 
-
 def update(frame):
-    global samples, cbar, marker1, marker2, xs, ys, robot_state, t
+    global samples, xs, ys, robot_state
     if frame == 0:
         samples = dict()
         robot_state = RobotState(*start, pbounds, samples, acq_func, max_depth, step_size)
     else:
         robot_state = mcts_state_update(mcts, robot_state, samples, sample_func=caldera_sim_function)
 
-    # plt.subplot(211)
+    fig_changes = list()
+
     xs = np.concatenate((xs, [robot_state.x]))
     ys = np.concatenate((ys, [robot_state.y]))
-    if marker1 is not None:
-        ax1.lines.pop()
-    pos1, = ax1.plot(xs[-2:], ys[-2:], color='k')
-    marker1, = ax1.plot(robot_state.x, robot_state.y, '*m')
-    # plt.pause(0.1)
+    fig_changes.extend(contour_plot.draw_robot((robot_state.x, robot_state.y), connect=True))
+    fig_changes.extend(acq_plot.draw_robot((robot_state.x, robot_state.y), connect=True))
 
-    # plt.subplot(212)
     scores = acq_func.utility(np.vstack([X.ravel(), Y.ravel()]).transpose(), robot_state.gp, 0)
     scores = scores.reshape(X.shape) * robot_state.y_max
-    # print(samples)
-    if marker2 is not None:
-        ax2.lines.pop()
-    im = ax2.imshow(scores, cmap='hot', interpolation='nearest')
-    im.set_clim(vmin=0)
-    if cbar is not None:
-        cbar.remove()
-    cbar = plt.colorbar(im, ax=ax2, fraction=0.046, pad=0.04)
-    pos2, = ax2.plot(xs[-2:], ys[-2:], color='k')
-    marker2, = ax2.plot(robot_state.x, robot_state.y, '*m')
-    ax2.invert_yaxis()
-    # plt.pause(0.1)
+    fig_changes.extend(acq_plot.draw_heatmap(scores, colorbar=True, cmap='hot', vmin=0))
+
     t.update(n=1)
     plt.tight_layout()
-    return marker1, marker2, pos1, pos2, im
+    return fig_changes
 
 
-anim = animation.FuncAnimation(fig, update, save_count=num_actions, frames=num_actions, blit=True)
-# anim.save(filename + '.mp4', fps=fps)
-anim.save(filename + '.gif', writer='imagemagick', fps=fps)
+if debug:
+    for i in range(num_actions):
+        update(i)
+        plt.pause(0.1)
+    plt.show()
+else:
+    anim = animation.FuncAnimation(fig, update, save_count=num_actions, frames=num_actions, blit=True)
+    # anim.save(filename + '.mp4', fps=fps)
+    anim.save(filename + '.gif', writer='imagemagick', fps=fps)

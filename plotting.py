@@ -26,11 +26,14 @@ class RobotPlot:
     def draw_robot(self, new_pos, connect=True):
         for marker in self.robot_marker:
             marker.remove()
+        changed = list()
         if connect and self.pos is not None:
-            self.path.append(ax1.plot([pos[0], new_pos[0]], [pos[1], new_pos[1]], color='k'))
-        self.pos = new_pos
+            self.path.append(self.ax.plot([self.pos[0], new_pos[0]], [self.pos[1], new_pos[1]], color='k'))
+            changed.extend(self.path[-1])
         self.robot_marker = self.ax.plot(*new_pos, '*m')
-        return self.path[-1], self.robot_marker
+        self.pos = new_pos
+        changed.extend(self.robot_marker)
+        return changed
 
 
 class ContourPlot(RobotPlot):
@@ -65,12 +68,13 @@ class HeatmapPlot(RobotPlot):
         self.im: Optional[AxesImage] = None
         self.cbar: Optional[Colorbar] = None
 
-    def draw_heatmap(self, map, label=True, colorbar=False, **heatmap_kw):
+    def draw_heatmap(self, map, colorbar=True, **heatmap_kw):
         if self.cbar is not None:
             self.cbar.remove()
-        self.im = self.ax.imshow(map, **heatmap_kw)
-        changed = self.im
+        self.im = self.ax.imshow(map, interpolation='nearest', **heatmap_kw)
+        self.ax.invert_yaxis()
+        changed = [self.im]
         if colorbar:
             self.cbar = plt.gcf().colorbar(self.im, ax=self.ax, fraction=0.046, pad=0.04)
-            changed.append(self.cbar)
+            # changed.append(self.cbar)
         return changed
