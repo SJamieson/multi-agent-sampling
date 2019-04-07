@@ -6,6 +6,17 @@ from matplotlib.contour import QuadContourSet, ClabelText
 from matplotlib.colorbar import Colorbar
 from matplotlib.image import AxesImage
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+import warnings
+
+
+def caldera_sim_function(x, y):
+    warnings.filterwarnings("ignore", category=matplotlib.cbook.MatplotlibDeprecationWarning)
+    x, y = x / 10.0, y / 10.0
+    z0 = mlab.bivariate_normal(x, y, 10.0, 5.0, 5.0, 0.0)
+    z1 = mlab.bivariate_normal(x, y, 1.0, 2.0, 2.0, 5.0)
+    z2 = mlab.bivariate_normal(x, y, 1.7, 1.7, 8.0, 8.0)
+    return 50000.0 * z0 + 2500.0 * z1 + 5000.0 * z2
 
 
 def draw_caldera_maxima(axes: plt.Axes):

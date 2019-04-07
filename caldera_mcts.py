@@ -1,20 +1,20 @@
 from mcts import mcts
 from bayes_opt.bayesian_optimization import *
 from copy import deepcopy
-import matplotlib
-import matplotlib.mlab as mlab
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process import GaussianProcessRegressor
-import warnings
-
-
-def caldera_sim_function(x, y):
-    warnings.filterwarnings("ignore", category=matplotlib.cbook.MatplotlibDeprecationWarning)
-    x, y = x / 10.0, y / 10.0
-    z0 = mlab.bivariate_normal(x, y, 10.0, 5.0, 5.0, 0.0)
-    z1 = mlab.bivariate_normal(x, y, 1.0, 2.0, 2.0, 5.0)
-    z2 = mlab.bivariate_normal(x, y, 1.7, 1.7, 8.0, 8.0)
-    return 50000.0 * z0 + 2500.0 * z1 + 5000.0 * z2
+# import matplotlib
+# import matplotlib.mlab as mlab
+# import warnings
+#
+#
+# def caldera_sim_function(x, y):
+#     warnings.filterwarnings("ignore", category=matplotlib.cbook.MatplotlibDeprecationWarning)
+#     x, y = x / 10.0, y / 10.0
+#     z0 = mlab.bivariate_normal(x, y, 10.0, 5.0, 5.0, 0.0)
+#     z1 = mlab.bivariate_normal(x, y, 1.0, 2.0, 2.0, 5.0)
+#     z2 = mlab.bivariate_normal(x, y, 1.7, 1.7, 8.0, 8.0)
+#     return 50000.0 * z0 + 2500.0 * z1 + 5000.0 * z2
 
 
 class RobotState:
@@ -98,7 +98,7 @@ class RobotState:
         return new_state
 
     def isTerminal(self):
-        global max_depth
+        global max_tree_depth
         assert (self.depth == len(self.history))
         return self.depth >= self.max_depth
 
@@ -126,19 +126,15 @@ if __name__ == "__main__":
     bounds = {'x': (0, 100), 'y': (0, 100)}
     start = [80, 50]
     kappa = 2.576
-    xi = 0
-    max_depth = 7
+    max_tree_depth = 7
     num_actions = 150
     step_size = 4
-    can_backtrack = False
-    acq = 'ucb'
 
     ucb = UtilityFunction('ucb', kappa=kappa, xi=0)
-    ei = UtilityFunction('ei', kappa=0, xi=0)
-    acq_func = ucb if acq == 'ucb' else ei
+    acq_func = ucb
 
-    mcts = mcts(timeLimit=max_depth * 300)
+    mcts = mcts(iterationLimit=16 * (max_tree_depth ** 2))
     samples = dict()
-    robot_state = RobotState(*start, bounds, samples, acq_func, max_depth=max_depth)
+    robot_state = RobotState(*start, bounds, samples, acq_func, max_depth=max_tree_depth)
     for _ in range(num_actions):
         mcts_state_update(mcts, robot_state, samples, sample_func=caldera_sim_function)

@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib import animation
-from plotting import ContourPlot, HeatmapPlot, draw_caldera_maxima
+from plotting import ContourPlot, HeatmapPlot, draw_caldera_maxima, caldera_sim_function
 
 
 def get_param(num, default):
@@ -21,19 +21,19 @@ pbounds = {'x': (0, 100), 'y': (0, 100)}
 start = [80, 20]
 kappa = float(get_param(1, 2.576))
 xi = 0
-max_depth = int(get_param(2, 5))
+max_tree_depth = int(get_param(2, 5))
 num_actions = int(get_param(4, 60))
 fps = num_actions // video_length
 step_size = int(get_param(3, 4))
 can_backtrack = False
 acq = 'ucb'
 filename = 'single-acq={}.{}-{}x{}y-d{}-na{}-ss{}'.format(acq, kappa if acq == 'ucb' else xi, start[0],
-                                                          start[1], max_depth, num_actions, step_size)
+                                                          start[1], max_tree_depth, num_actions, step_size)
 
 ## MCTS setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
 # mcts = mcts(timeLimit=max_depth * 600)
-mcts = mcts(iterationLimit=16 * (max_depth ** 2))
+mcts = mcts(iterationLimit=16 * (max_tree_depth ** 2))
 samples, robot_state = None, None
 
 ## Plotting setup
@@ -62,7 +62,7 @@ def update(frame):
     global samples, xs, ys, robot_state
     if frame == 0:
         samples = dict()
-        robot_state = RobotState(*start, pbounds, samples, acq_func, max_depth, step_size)
+        robot_state = RobotState(*start, pbounds, samples, acq_func, max_tree_depth, step_size)
     else:
         robot_state = mcts_state_update(mcts, robot_state, samples, sample_func=caldera_sim_function)
 

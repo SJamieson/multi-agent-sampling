@@ -1,6 +1,5 @@
 from bayes_opt import UtilityFunction, BayesianOptimization
-from caldera_mcts import caldera_sim_function
-from plotting import HeatmapPlot, ContourPlot, draw_caldera_maxima
+from plotting import HeatmapPlot, ContourPlot, draw_caldera_maxima, caldera_sim_function
 import numpy as np
 from tqdm import tqdm
 import sys

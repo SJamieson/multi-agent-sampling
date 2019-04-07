@@ -1,9 +1,8 @@
 from bayes_opt import UtilityFunction, BayesianOptimization
-from caldera_mcts import caldera_sim_function
 import numpy as np
 from tqdm import tqdm
 import sys
-from plotting import draw_caldera_maxima, HeatmapPlot, ContourPlot
+from plotting import draw_caldera_maxima, HeatmapPlot, ContourPlot, caldera_sim_function
 import matplotlib
 
 matplotlib.use("TkAgg")
@@ -126,5 +125,4 @@ if debug:
 else:
     anim = animation.FuncAnimation(fig, update, save_count=len(points), frames=len(points) - 1,
                                    blit=True if type == 'acq-func' else False)
-    # anim.save(filename + '.mp4', fps=fps)
     anim.save(filename + '.gif', writer='imagemagick', fps=fps)
