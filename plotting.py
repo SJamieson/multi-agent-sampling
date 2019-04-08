@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 import matplotlib
 
 matplotlib.use("TkAgg")
@@ -29,21 +29,24 @@ def draw_caldera_maxima(axes: plt.Axes):
 class RobotPlot:
     def __init__(self, ax, title):
         self.ax: plt.Axes = ax
-        self.pos: Optional[Tuple[int, int]] = None
-        self.robot_marker: List[plt.Line2D] = list()
-        self.path: List[List[plt.Line2D]] = list()
+        self.pos: Dict[int, Optional[Tuple[int, int]]] = dict()
+        self.robot_marker: Dict[int, List[plt.Line2D]] = dict()
+        self.path: Dict[int, List[List[plt.Line2D]]] = dict()
         self.ax.title.set_text(title)
 
-    def draw_robot(self, new_pos, connect=True):
-        for marker in self.robot_marker:
+    def draw_robot(self, new_pos, connect=True, index=0):
+        for marker in self.robot_marker.get(index, list()):
             marker.remove()
         changed = list()
-        if connect and self.pos is not None:
-            self.path.append(self.ax.plot([self.pos[0], new_pos[0]], [self.pos[1], new_pos[1]], color='k'))
-            changed.extend(self.path[-1])
-        self.robot_marker = self.ax.plot(*new_pos, '*m')
-        self.pos = new_pos
-        changed.extend(self.robot_marker)
+        if connect and self.pos.get(index, None) is not None:
+            if index not in self.path:
+                self.path[index] = list()
+            self.path[index].append(self.ax.plot([self.pos[index][0], new_pos[0]],
+                                                 [self.pos[index][1], new_pos[1]], color='k'))
+            changed.extend(self.path[index][-1])
+        self.robot_marker[index] = self.ax.plot(*new_pos, '*m')
+        self.pos[index] = new_pos
+        changed.extend(self.robot_marker[index])
         return changed
 
 
