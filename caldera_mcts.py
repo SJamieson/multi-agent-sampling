@@ -88,26 +88,27 @@ class RobotState:
         return self.available_actions[:]
 
     def takeAction(self, action):
+        new_x, new_y = self.x, self.y
+        if action == 'west':
+            new_x -= self.step_size
+        if action == 'east':
+            new_x += self.step_size
+        if action == 'north':
+            new_y += self.step_size
+        if action == 'south':
+            new_y -= self.step_size
+
         # Add the predicted sample to the set of samples
         new_samples = deepcopy(self.samples)
-        new_samples[(self.x, self.y)] = self.gp.predict(np.array([self.x, self.y]).reshape(1, -1))
+        new_samples[(new_x, new_y)] = self.gp.predict(np.array([new_x, new_y]).reshape(1, -1))
 
         # Create a new state representing the child
-        new_state = self.renew(new_samples)  # initially a root note
+        new_state = RobotState(new_x, new_y, self.bounds, new_samples, self.acq_func, self.max_tree_depth,
+                               self.step_size, current_direction=action, kernel=self.gp.kernel)  # initially a root note
         new_state.tree_depth = self.tree_depth + 1  # Set depth in tree (no longer a root node)
         new_state.base_reward = self.getReward()  # Add accumulated reward
-        new_state.current_direction = action  # Update direction
         new_state.action_history = self.action_history.copy()  # Pass on action history
         new_state.action_history.append(action)
-
-        if action == 'west':
-            new_state.x -= self.step_size
-        if action == 'east':
-            new_state.x += self.step_size
-        if action == 'north':
-            new_state.y += self.step_size
-        if action == 'south':
-            new_state.y -= self.step_size
         return new_state
 
     def isTerminal(self):

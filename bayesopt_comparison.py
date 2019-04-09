@@ -16,6 +16,8 @@ def get_param(num, default):
 
 video_length = 8  # in seconds
 debug = False
+type = 'world-model'
+# type = 'acq-func'
 
 ## Sim parameters
 pbounds = {'x': (0, 100), 'y': (0, 100)}
@@ -25,7 +27,8 @@ num_samples = int(get_param(2, 8))
 num_steps = int(get_param(3, 1))
 fps = num_samples // video_length
 acq = 'ucb'
-filename = 'bayesopt-acq={}.{}-ns{}-st{}'.format(acq, kappa if acq == 'ucb' else xi, num_samples, num_steps)
+filename = 'bayesopt-{}acq={}.{}-ns{}-st{}'.format('predict-' if type == 'world-model' else '', acq,
+                                                   kappa if acq == 'ucb' else xi, num_samples, num_steps)
 
 ## bayesopt setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
@@ -44,7 +47,10 @@ contour_plot.draw_contours(X, Y, caldera_sim_function(X, Y), label=True, colorba
 draw_caldera_maxima(ax1)
 
 ax2 = fig.add_subplot(1, 2, 2, adjustable='box', aspect=1.0)
-acq_plot = HeatmapPlot(ax2, 'Acquisition Function')
+if type == 'acq-func':
+    ax2_plot = HeatmapPlot(ax2, 'Acquisition Function')
+elif type == 'world-model':
+    ax2_plot = ContourPlot(ax2, 'World Model')
 draw_caldera_maxima(ax2)
 xs = np.array([])
 ys = np.array([])
@@ -79,13 +85,17 @@ def update(frame):
     xs = np.concatenate((xs, [x]))
     ys = np.concatenate((ys, [y]))
     fig_changes.extend(contour_plot.draw_robot((x, y), connect=(not reset_loc)))
-    fig_changes.extend(acq_plot.draw_robot((x, y), connect=(not reset_loc)))
+    fig_changes.extend(ax2_plot.draw_robot((x, y), connect=(not reset_loc)))
     # plt.pause(0.1)
 
     # plt.subplot(212)
-    scores = acq_func.utility(np.vstack([X.ravel(), Y.ravel()]).transpose(), optimizer._gp, 0)
-    scores = scores.reshape(X.shape)
-    fig_changes.extend(acq_plot.draw_heatmap(scores, colorbar=True, cmap='hot', vmin=0))
+    if type == 'acq-func':
+        scores = acq_func.utility(np.vstack([X.ravel(), Y.ravel()]).transpose(), optimizer._gp, 0)
+        scores = scores.reshape(X.shape)
+        fig_changes.extend(ax2_plot.draw_heatmap(scores, colorbar=True, cmap='hot', vmin=0))
+    elif type == 'world-model':
+        depth = optimizer._gp.predict(np.vstack([X.ravel(), Y.ravel()]).transpose()).reshape(X.shape)
+        fig_changes.extend(ax2_plot.draw_contours(X, Y, depth, label=True, colorbar=False, levels=12, cmap='Blues'))
 
     t.update(n=1)
     plt.tight_layout()
@@ -98,5 +108,6 @@ if debug:
         plt.pause(0.1)
     plt.show()
 else:
-    anim = animation.FuncAnimation(fig, update, save_count=num_samples, frames=num_samples, blit=True)
+    anim = animation.FuncAnimation(fig, update, save_count=num_samples, frames=num_samples,
+                                   blit=True if type == 'acq-func' else False)
     anim.save(filename + '.gif', writer='imagemagick', fps=fps, savefig_kwargs={'bbox_inches': 'tight'})
