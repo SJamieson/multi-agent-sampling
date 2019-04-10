@@ -18,24 +18,32 @@ debug = False
 
 ## Sim parameters
 pbounds = {'x': (0, 100), 'y': (0, 100)}
-start = [[80, 20], [85, 25], [85, 15]]
+start = [[25, 20], [85, 25], [50, 75]]
 kappa = float(get_param(1, 10))  # 2.576
 xi = 0
-max_tree_depth = int(get_param(2, 5))
-num_actions = int(get_param(4, 90))
+max_tree_depth = int(get_param(2, 4))
+num_actions = int(get_param(4, 60))
 num_agents = 3
 fps = num_actions // video_length
-step_size = int(get_param(3, 4))
+step_size = int(get_param(3, 8))
 can_backtrack = False
 acq = 'ucb'
-filename = 'multi-acq={}.{}-{}x{}y-d{}-na{}-ss{}'.format(acq, kappa if acq == 'ucb' else xi, start[0],
-                                                         start[1], max_tree_depth, num_actions, step_size)
+# type = 'indep'
+# type = 'serial'
+type = 'partition'
+filename = '{}-acq={}.{}-{}x{}y-d{}-na{}-ss{}'.format(type, acq, kappa if acq == 'ucb' else xi, start[0],
+                                                      start[1], max_tree_depth, num_actions, step_size)
 
 ## MCTS setup
 acq_func = UtilityFunction(acq, kappa=kappa, xi=xi)
 # mcts = mcts(timeLimit=max_depth * 600)
 mcts = mcts(iterationLimit=16 * (max_tree_depth ** 2))
 samples, robot_state = None, [None] * num_agents
+
+pbounds_1 = {'x': (0, 50), 'y': (0, 50)}
+pbounds_2 = {'x': (50, 100), 'y': (0, 50)}
+pbounds_3 = {'x': (0, 100), 'y': (50, 100)}
+pbounds = {0: pbounds_1, 1: pbounds_2, 2: pbounds_3} if type == 'partition' else pbounds
 
 ## Plotting setup
 delta = 1
@@ -64,13 +72,17 @@ def update(frame):
     if frame == 0:
         samples = dict()
         for i in range(num_agents):
-            robot_state[i] = RobotState(*start[i], pbounds, samples, acq_func, max_tree_depth, step_size)
-    else:
+            if type == 'partition':
+                bounds = pbounds[i]
+            else:
+                bounds = pbounds
+            robot_state[i] = RobotState(*start[i], bounds, samples, acq_func, max_tree_depth, step_size)
+    elif type == 'serial':
         sim_samples = deepcopy(samples)  # will store simulated samples of previous agents
         for i in range(num_agents):
             if i > 0:
                 # Figure out where the previous robot chose to go
-                previous_robot_target = robot_state[i-1].x, robot_state[i-1].y
+                previous_robot_target = robot_state[i - 1].x, robot_state[i - 1].y
                 # Predict what they will sample at that location
                 predicted_sample = robot_state[i].gp.predict(np.array(previous_robot_target).reshape(1, -1))
                 # Add that simulated sample to the list of sim samples
@@ -83,6 +95,13 @@ def update(frame):
             robot_state[i] = mcts_state_update(mcts, sim_state, samples, sample_func=caldera_sim_function)
         # We no longer care about sim_samples, so let's clean it up
         del sim_samples
+    elif type == 'indep' or type == 'partition':
+        for i in range(num_agents):
+            if i not in samples:
+                samples[i] = dict()
+            robot_state[i] = mcts_state_update(mcts, robot_state[i], samples[i], sample_func=caldera_sim_function)
+    else:
+        raise RuntimeError('Unknown type')
 
     fig_changes = list()
 
