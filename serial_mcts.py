@@ -97,9 +97,9 @@ def update(frame):
         del sim_samples
     elif type == 'indep' or type == 'partition':
         for i in range(num_agents):
-            if i not in samples:
-                samples[i] = dict()
-            robot_state[i] = mcts_state_update(mcts, robot_state[i], samples[i], sample_func=caldera_sim_function)
+            # if i not in samples:
+            #     samples[i] = dict()
+            robot_state[i] = mcts_state_update(mcts, robot_state[i], samples, sample_func=caldera_sim_function)
     else:
         raise RuntimeError('Unknown type')
 

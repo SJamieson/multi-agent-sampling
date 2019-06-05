@@ -1,6 +1,5 @@
 from typing import Optional, List, Tuple, Dict
 import matplotlib
-
 matplotlib.use("TkAgg")
 from matplotlib.contour import QuadContourSet, ClabelText
 from matplotlib.colorbar import Colorbar
@@ -10,19 +9,19 @@ import matplotlib.mlab as mlab
 import warnings
 
 
-def caldera_sim_function(x, y):
+def caldera_sim_function(x, y, map_size=(100,100)):
     warnings.filterwarnings("ignore", category=matplotlib.cbook.MatplotlibDeprecationWarning)
-    x, y = x / 10.0, y / 10.0
+    x, y = x / (map_size[0] / 10.), y / (map_size[1] / 10.)
     z0 = mlab.bivariate_normal(x, y, 10.0, 5.0, 5.0, 0.0)
     z1 = mlab.bivariate_normal(x, y, 1.0, 2.0, 2.0, 5.0)
     z2 = mlab.bivariate_normal(x, y, 1.7, 1.7, 8.0, 8.0)
     return 50000.0 * z0 + 2500.0 * z1 + 5000.0 * z2
 
 
-def draw_caldera_maxima(axes: plt.Axes):
+def draw_caldera_maxima(axes: plt.Axes, map_size=(100,100)):
     maxima = list()
-    maxima.extend(axes.plot(20, 46, 'bx'))
-    maxima.extend(axes.plot(79, 79, 'bx'))
+    maxima.extend(axes.plot(20 * (map_size[0] / 100.), 46 * (map_size[1] / 100.), 'bx'))
+    maxima.extend(axes.plot(79 * (map_size[0] / 100.), 79 * (map_size[1] / 100.), 'bx'))
     return maxima
 
 
@@ -32,9 +31,10 @@ class RobotPlot:
         self.pos: Dict[int, Optional[Tuple[int, int]]] = dict()
         self.robot_marker: Dict[int, List[plt.Line2D]] = dict()
         self.path: Dict[int, List[List[plt.Line2D]]] = dict()
-        self.ax.title.set_text(title)
+        if title is not None:
+            self.ax.title.set_text(title)
 
-    def draw_robot(self, new_pos, connect=True, index=0):
+    def draw_robot(self, new_pos, color='m', connect=True, index=0):
         for marker in self.robot_marker.get(index, list()):
             marker.remove()
         changed = list()
@@ -44,7 +44,7 @@ class RobotPlot:
             self.path[index].append(self.ax.plot([self.pos[index][0], new_pos[0]],
                                                  [self.pos[index][1], new_pos[1]], color='k'))
             changed.extend(self.path[index][-1])
-        self.robot_marker[index] = self.ax.plot(*new_pos, '*m')
+        self.robot_marker[index] = self.ax.plot(*new_pos, '*' + color)
         self.pos[index] = new_pos
         changed.extend(self.robot_marker[index])
         return changed
